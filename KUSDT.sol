@@ -72,11 +72,11 @@ library SafeMath {
     }
 }
 
-contract KETH is IKAP20 {
+contract KUSDT is IKAP20 {
     using SafeMath for uint256;
     
-    string public name     = "Bitkub-Peg ETH";
-    string public symbol   = "KETH";
+    string public name     = "Bitkub-Peg USDT";
+    string public symbol   = "KUSDT";
     uint8  public decimals = 18;
     
     uint256 public override totalSupply;
