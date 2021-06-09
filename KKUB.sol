@@ -49,8 +49,9 @@ contract KKUB is IKAP20 {
     
     IAdminAsset public admin;
     IKYC public kyc;
-    bool public isActivatedOnlyKycAddress;
     bool public paused;
+    
+    uint256 public kycsLevel;
     
     modifier onlySuperAdmin() {
         require(admin.isSuperAdmin(msg.sender, symbol), "Restricted only super admin");
@@ -70,14 +71,16 @@ contract KKUB is IKAP20 {
     constructor(address _admin, address _kyc) public {
         admin = IAdminAsset(_admin);
         kyc = IKYC(_kyc);
+        kycsLevel = 1;
     }
 
     function setKYC(address _kyc) external onlySuperAdmin {
         kyc = IKYC(_kyc);
     }
     
-    function activateOnlyKycAddress() external onlySuperAdmin {
-        isActivatedOnlyKycAddress = true;
+    function setKYCsLevel(uint256 _kycsLevel) external onlySuperAdmin {
+        require(_kycsLevel > 0);
+        kycsLevel = _kycsLevel;
     }
     
     function getOwner() external view override returns (address) {
@@ -109,6 +112,8 @@ contract KKUB is IKAP20 {
     
     function _withdraw(uint256 _value, address _addr) internal {
         require(balances[_addr] >= _value);
+        require(kyc.kycsLevel(_addr) > kycsLevel, "only kyc address registered with phone number can withdraw");
+        
         balances[_addr] -= _value;
         payable(_addr).transfer(_value);
         emit Withdrawal(_addr, _value);
@@ -161,7 +166,6 @@ contract KKUB is IKAP20 {
         require(_value <= allowed[_from][msg.sender]);
         require(blacklist[_from] == false && blacklist[_to] == false, "Address is in the blacklist");
 
-
         balances[_from] -= _value;
         balances[_to] += _value;
         allowed[_from][msg.sender] -= _value;
@@ -177,11 +181,6 @@ contract KKUB is IKAP20 {
         require(_from.length == _to.length && _to.length == _value.length, "Need all input in same length");
 
         for (uint256 i = 0; i < _from.length; i++) {
-            if (isActivatedOnlyKycAddress == true) {
-                if (kyc.kycsLevel(_from[i]) <= 1 || kyc.kycsLevel(_to[i]) <= 1) {
-                    continue;
-                }
-            }
             if(blacklist[_from[i]] == true || blacklist[_to[i]] == true){
                   continue;
             }
@@ -201,10 +200,6 @@ contract KKUB is IKAP20 {
         address _to,
         uint256 _value
     ) external override onlySuperAdmin returns (bool) {
-        if (isActivatedOnlyKycAddress == true) {
-            require(kyc.kycsLevel(_from) > 1 && kyc.kycsLevel(_to) > 1, "only kyc address admin can control");
-        }
-
         require(balances[_from] >= _value);
         balances[_from] -= _value;
         balances[_to] += _value;
